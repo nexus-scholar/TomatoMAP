@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs / artifacts / checkpoints
+*.log
+*.out
+*.err
+*.pt
+*.pth
+*.ckpt
+runs/
+
+# Research outputs (new source-of-truth tree)
+code/outputs/
+
+# Kaggle credentials (local only)
+.kaggle/
+kaggle.json
+
+# Raw dataset trees (do not commit by default)
+TomatoMAP/TomatoMAP_seg/
+TomatoMAP/TomatoMAP-Cls/
+TomatoMAP/TomatoMAP-Det/
+TomatoMAP/img/
+TomatoMAP/labels/
+
+# Keep data packaging template docs/metadata but not actual payload
+tomato_data_upload/
+kaggle/datasets/paper1-data-template/data/
+!kaggle/datasets/paper1-data-template/data/.gitkeep
+
+# Nested legacy repo container (tracked separately; keep out of parent index)
+TomatoMAP/

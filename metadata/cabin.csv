@@ -1,0 +1,2 @@
+"cabinid","cabinname","size","humiditymax","humiditymin","tempmax","tempmin","lightmax","lightmin","autowatering","additionlight","shadingscreen","heatingmax","coolingmax"
+"1","H01504",60,100,0,100,0,100,0,False,False,True,4,4

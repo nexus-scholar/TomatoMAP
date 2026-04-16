@@ -1,0 +1,64 @@
+{
+  "experiment_id": "paper1_baseline_v1_kaggle",
+  "paper_track": "paper1",
+  "seed": 888,
+  "dataset": {
+    "source_images_dir": "/kaggle/input/<your-dataset-slug>/TomatoMAP_seg/images",
+    "source_labels_dir": "/kaggle/input/<your-dataset-slug>/TomatoMAP_seg/labels",
+    "categories_file": "/kaggle/input/<your-dataset-slug>/TomatoMAP_seg/labels/isat.yaml",
+    "verified_labels_only": true
+  },
+  "split": {
+    "manifest_path": "code/configs/paper1/split_manifest_v1.json",
+    "freeze_once": true,
+    "regenerate_on_run": false,
+    "train_ratio": 0.7,
+    "val_ratio": 0.2,
+    "seed": 888
+  },
+  "class_names": [
+    "tomato"
+  ],
+  "image_size": {
+    "width": 1024,
+    "height": 1024
+  },
+  "paths": {
+    "baseline_root": "code/outputs/paper1/baseline_v1",
+    "coco_dir": "code/outputs/paper1/baseline_v1/coco",
+    "dataset_view_dir": "code/outputs/paper1/baseline_v1/dataset_view",
+    "dataset_view_images_dir": "code/outputs/paper1/baseline_v1/dataset_view/images",
+    "dataset_view_coco_dir": "code/outputs/paper1/baseline_v1/dataset_view/cocoOut",
+    "train_output_dir": "code/outputs/paper1/baseline_v1/train",
+    "logs_dir": "code/outputs/paper1/baseline_v1/logs"
+  },
+  "dataset_view": {
+    "enabled": true,
+    "link_images": true,
+    "allow_fallback_to_source_images": true
+  },
+  "training": {
+    "engine_entrypoint": "TomatoMAP/code/main.py",
+    "task": "seg",
+    "action": "train",
+    "model": "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_1x.yaml",
+    "epochs": 100,
+    "batch_size": 4,
+    "lr": 0.0001,
+    "patience": 5
+  },
+  "evaluation": {
+    "engine_entrypoint": "TomatoMAP/code/main.py",
+    "task": "seg",
+    "action": "eval",
+    "model_path": "model_best.pth"
+  },
+  "artifacts": {
+    "run_manifest": "code/outputs/paper1/baseline_v1/run_manifest.json",
+    "split_summary": "code/outputs/paper1/baseline_v1/split_summary.json",
+    "train_args": "code/outputs/paper1/baseline_v1/train_args.json",
+    "eval_metrics": "code/outputs/paper1/baseline_v1/eval_metrics.json",
+    "artifact_index": "code/outputs/paper1/baseline_v1/artifact_index.json"
+  }
+}
+

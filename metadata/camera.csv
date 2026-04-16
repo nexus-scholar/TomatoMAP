@@ -1,0 +1,6 @@
+cameraid,cameraname,cameraang,camerapos,calibrated
+5,InnoMaker RPI Camera Module,0,backup,True
+4,InnoMaker RPI Camera Module,4,"vertical, 180 degree",True
+3,InnoMaker RPI Camera Module,3,"tilt top, 135 degree",True
+2,RPIZ CAM 5MP 170,2,"horizontal, 90 degree",True
+1,InnoMaker RPI Camera Module,1,"bottom, 45 degree",True

@@ -1,0 +1,11 @@
+TomatoMAP-Det/
+├── images
+│   ├── test
+│   ├── train
+│   └── val
+└── labels
+    ├── test
+    ├── train
+    └── val
+
+8 directories, 0 files
