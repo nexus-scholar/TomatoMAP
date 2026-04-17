@@ -3,9 +3,9 @@
   "paper_track": "paper1",
   "seed": 888,
   "dataset": {
-    "source_images_dir": "/kaggle/input/<your-dataset-slug>/TomatoMAP_seg/images",
-    "source_labels_dir": "/kaggle/input/<your-dataset-slug>/TomatoMAP_seg/labels",
-    "categories_file": "/kaggle/input/<your-dataset-slug>/TomatoMAP_seg/labels/isat.yaml",
+    "source_images_dir": "/kaggle/input/tomatomap-paper1-seg-data/TomatoMAP_seg/images",
+    "source_labels_dir": "/kaggle/input/tomatomap-paper1-seg-data/TomatoMAP_seg/labels",
+    "categories_file": "/kaggle/input/tomatomap-paper1-seg-data/TomatoMAP_seg/labels/isat.yaml",
     "verified_labels_only": true
   },
   "split": {
@@ -61,4 +61,3 @@
     "artifact_index": "code/outputs/paper1/baseline_v1/artifact_index.json"
   }
 }
-

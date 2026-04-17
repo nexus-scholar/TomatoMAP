@@ -1,12 +1,11 @@
 {
   "title": "TomatoMAP Paper1 Segmentation Data",
-  "id": "<your-kaggle-username>/tomatomap-paper1-seg-data",
+  "id": "mbsoft/tomatomap-paper1-seg-data",
   "licenses": [
     {
       "name": "CC-BY-4.0"
     }
   ],
-  "subtitle": "Data package for Paper 1 baseline reproducibility",
-  "description": "Template metadata. Fill in username/title/description before creating the dataset. Place data under data/TomatoMAP_seg/{images,labels}."
+  "subtitle": "Released TomatoMAP segmentation subset for Paper 1 baseline reproducibility",
+  "description": "TomatoMAP Paper 1 segmentation data package. Contains the verified released segmentation subset in TomatoMAP_seg/images and TomatoMAP_seg/labels for reproducible baseline training and evaluation."
 }
-
