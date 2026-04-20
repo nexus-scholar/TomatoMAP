@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import math
 import shutil
 import sys
 from pathlib import Path
@@ -74,7 +75,13 @@ def _build_yolo_runtime_dataset(data_dir: Path, output_dir: Path, num_classes: i
         categories = payload.get("categories", [])
 
         cat_ids = sorted([c["id"] for c in categories])
-        id_to_idx = {cid: i for i, cid in enumerate(cat_ids)}
+        if int(num_classes) <= 1:
+            # Paper 1 single-class mode: collapse all source categories to class 0.
+            id_to_idx = {cid: 0 for cid in cat_ids}
+        else:
+            # Guard against out-of-range labels by mapping only the first num_classes ids.
+            valid_ids = cat_ids[: int(num_classes)]
+            id_to_idx = {cid: i for i, cid in enumerate(valid_ids)}
 
         anns_by_img: Dict[int, list[dict]] = {}
         for ann in annotations:
@@ -140,10 +147,172 @@ def _build_yolo_runtime_dataset(data_dir: Path, output_dir: Path, num_classes: i
     return data_yaml
 
 
+def _make_json_safe(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        return {str(k): _make_json_safe(v) for k, v in payload.items()}
+    if isinstance(payload, (list, tuple)):
+        return [_make_json_safe(v) for v in payload]
+    if isinstance(payload, (str, int, float, bool)) or payload is None:
+        return payload
+    try:
+        return float(payload)
+    except Exception:
+        return str(payload)
+
+
+def _write_backend_metadata(output_dir: Path, backend: str, model: str) -> None:
+    meta_path = output_dir / "backend.json"
+    meta_path.parent.mkdir(parents=True, exist_ok=True)
+    meta_path.write_text(json.dumps({"backend": backend, "model": model}, indent=2), encoding="utf-8")
+
+
+def _read_backend_metadata(output_dir: Path) -> Optional[str]:
+    meta_path = output_dir / "backend.json"
+    if not meta_path.exists():
+        return None
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        backend = payload.get("backend")
+        return str(backend) if backend else None
+    except Exception:
+        return None
+
+
+def _register_detectron2_split(name: str, images_root: Path, coco_json: Path) -> None:
+    from detectron2.data import DatasetCatalog, MetadataCatalog
+    from detectron2.data.datasets import register_coco_instances
+
+    if name in DatasetCatalog.list():
+        DatasetCatalog.remove(name)
+    register_coco_instances(name, {}, str(coco_json), str(images_root))
+    MetadataCatalog.get(name)
+
+
+def _build_detectron2_cfg(args: argparse.Namespace, train_name: str, val_name: str):
+    from detectron2 import model_zoo
+    from detectron2.config import get_cfg
+
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file(args.model))
+    cfg.DATASETS.TRAIN = (train_name,)
+    cfg.DATASETS.TEST = (val_name,)
+    cfg.DATALOADER.NUM_WORKERS = 2
+    cfg.SOLVER.IMS_PER_BATCH = int(args.batch_size)
+    cfg.SOLVER.BASE_LR = float(args.lr)
+    cfg.SOLVER.STEPS = []
+    cfg.SOLVER.GAMMA = 1.0
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = int(args.num_classes)
+    cfg.OUTPUT_DIR = str(Path(args.output_dir))
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(args.model)
+    return cfg
+
+
+def _seg_train_detectron2(args: argparse.Namespace) -> Dict[str, Any]:
+    try:
+        from detectron2.engine import DefaultTrainer
+        from detectron2.data import DatasetCatalog
+    except Exception as exc:
+        raise RuntimeError("detectron2 is required for Detectron2 training in the new engine.") from exc
+
+    data_dir = Path(args.data_dir)
+    coco_dir = data_dir / "cocoOut"
+    images_root = data_dir / "images"
+    train_json = coco_dir / "train.json"
+    val_json = coco_dir / "val.json"
+    if not train_json.exists() or not val_json.exists() or not images_root.exists():
+        raise FileNotFoundError(f"Expected dataset view with images/ and cocoOut/train.json,val.json under: {data_dir}")
+
+    run_tag = str(abs(hash(Path(args.output_dir).as_posix())))
+    train_name = f"tomatomap_train_{run_tag}"
+    val_name = f"tomatomap_val_{run_tag}"
+    _register_detectron2_split(train_name, images_root, train_json)
+    _register_detectron2_split(val_name, images_root, val_json)
+
+    cfg = _build_detectron2_cfg(args, train_name, val_name)
+    train_items = DatasetCatalog.get(train_name)
+    iters_per_epoch = max(1, math.ceil(len(train_items) / max(1, int(args.batch_size))))
+    cfg.SOLVER.MAX_ITER = int(args.epochs) * iters_per_epoch
+
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    trainer = DefaultTrainer(cfg)
+    trainer.resume_or_load(resume=False)
+    trainer.train()
+
+    final_model = Path(args.output_dir) / "model_final.pth"
+    if final_model.exists():
+        shutil.copy2(final_model, Path(args.output_dir) / "model_best.pth")
+
+    _write_backend_metadata(Path(args.output_dir), "detectron2", str(args.model))
+    return {"status": "ok", "backend": "detectron2", "output_dir": str(args.output_dir)}
+
+
+def _seg_eval_detectron2(args: argparse.Namespace) -> Dict[str, Any]:
+    try:
+        from detectron2 import model_zoo
+        from detectron2.checkpoint import DetectionCheckpointer
+        from detectron2.config import get_cfg
+        from detectron2.data import build_detection_test_loader
+        from detectron2.engine import DefaultPredictor
+        from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+    except Exception as exc:
+        raise RuntimeError("detectron2 is required for Detectron2 evaluation in the new engine.") from exc
+
+    data_dir = Path(args.data_dir)
+    coco_dir = data_dir / "cocoOut"
+    images_root = data_dir / "images"
+    test_json = coco_dir / "test.json"
+    if not test_json.exists() or not images_root.exists():
+        raise FileNotFoundError(f"Expected dataset view with images/ and cocoOut/test.json under: {data_dir}")
+
+    run_tag = str(abs(hash(Path(args.output_dir).as_posix())))
+    test_name = f"tomatomap_test_{run_tag}"
+    _register_detectron2_split(test_name, images_root, test_json)
+
+    backend_meta = _read_backend_metadata(Path(args.output_dir))
+    model_hint = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_1x.yaml"
+    if backend_meta == "detectron2":
+        meta_path = Path(args.output_dir) / "backend.json"
+        try:
+            model_hint = json.loads(meta_path.read_text(encoding="utf-8")).get("model", model_hint)
+        except Exception:
+            pass
+
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file(model_hint))
+    cfg.DATASETS.TEST = (test_name,)
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
+    cfg.OUTPUT_DIR = str(Path(args.output_dir))
+
+    model_path = Path(args.model_path)
+    if not model_path.is_absolute():
+        model_path = Path(args.output_dir) / model_path
+    if not model_path.exists():
+        fallback = Path(args.output_dir) / "model_final.pth"
+        if fallback.exists():
+            model_path = fallback
+    if not model_path.exists():
+        raise FileNotFoundError(f"Detectron2 model checkpoint not found: {model_path}")
+
+    cfg.MODEL.WEIGHTS = str(model_path)
+    predictor = DefaultPredictor(cfg)
+    evaluator = COCOEvaluator(test_name, cfg, False, output_dir=str(Path(args.output_dir) / "eval"))
+    val_loader = build_detection_test_loader(cfg, test_name)
+    results = inference_on_dataset(predictor.model, val_loader, evaluator)
+
+    safe_payload = _make_json_safe(results)
+    out = Path(args.output_dir) / f"test_results_{Path(args.model_path).stem}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(safe_payload, indent=2), encoding="utf-8")
+    return {"status": "ok", "backend": "detectron2", "metrics_file": str(out)}
+
+
 def _seg_train(args: argparse.Namespace) -> Dict[str, Any]:
     model_name = str(args.model).lower()
-    if "yolo" not in model_name:
-        raise RuntimeError("New engine currently supports YOLO segmentation models only.")
+    if "yolo" not in model_name and "coco-instancesegmentation" not in model_name:
+        raise RuntimeError("Unsupported segmentation model string for new engine.")
+
+    if "coco-instancesegmentation" in model_name:
+        return _seg_train_detectron2(args)
 
     try:
         from ultralytics import YOLO
@@ -169,11 +338,18 @@ def _seg_train(args: argparse.Namespace) -> Dict[str, Any]:
     if best.exists():
         shutil.copy2(best, Path(args.output_dir) / "model_best.pth")
 
+    _write_backend_metadata(Path(args.output_dir), "ultralytics", str(args.model))
+
     return {"status": "ok", "backend": "ultralytics", "save_dir": str(run.save_dir)}
 
 
 def _seg_eval(args: argparse.Namespace) -> Dict[str, Any]:
     model_name = str(args.model_path).lower()
+    output_dir = Path(args.output_dir)
+    backend = _read_backend_metadata(output_dir)
+    if backend == "detectron2":
+        return _seg_eval_detectron2(args)
+
     try:
         from ultralytics import YOLO
     except Exception as exc:
@@ -203,7 +379,7 @@ def _seg_eval(args: argparse.Namespace) -> Dict[str, Any]:
         except Exception:
             safe_payload[k] = str(v)
 
-    out = Path(args.output_dir) / f"test_results_{Path(args.model_path).stem}.json"
+    out = output_dir / f"test_results_{Path(args.model_path).stem}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(safe_payload, indent=2), encoding="utf-8")
     return {"status": "ok", "backend": "ultralytics", "metrics_file": str(out)}
