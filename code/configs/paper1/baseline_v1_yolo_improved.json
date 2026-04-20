@@ -1,0 +1,65 @@
+{
+  "experiment_id": "paper1_baseline_v1_yolo_improved",
+  "paper_track": "paper1",
+  "seed": 888,
+  "dataset": {
+    "source_images_dir": "/kaggle/input/datasets/mbsoft/tomatomap-paper1-seg-data/data/TomatoMAP_seg/images",
+    "source_labels_dir": "/kaggle/input/datasets/mbsoft/tomatomap-paper1-seg-data/data/TomatoMAP_seg/labels",
+    "categories_file": "/kaggle/input/datasets/mbsoft/tomatomap-paper1-seg-data/data/TomatoMAP_seg/labels/isat.yaml",
+    "verified_labels_only": true
+  },
+  "split": {
+    "manifest_path": "code/configs/paper1/split_manifest_v1.json",
+    "freeze_once": true,
+    "regenerate_on_run": false,
+    "train_ratio": 0.7,
+    "val_ratio": 0.2,
+    "seed": 888
+  },
+  "class_names": [
+    "nascent",
+    "mini",
+    "unripe green tomato",
+    "semi ripe",
+    "fully ripe",
+    "2mm",
+    "4mm",
+    "6mm",
+    "8mm",
+    "12mm"
+  ],
+  "image_size": {
+    "width": 1024,
+    "height": 1024
+  },
+  "paths": {
+    "baseline_root": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved",
+    "coco_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved/coco",
+    "dataset_view_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved/dataset_view",
+    "dataset_view_images_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved/dataset_view/images",
+    "dataset_view_coco_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved/dataset_view/cocoOut",
+    "train_output_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved/train",
+    "logs_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1_yolo_improved/logs"
+  },
+  "dataset_view": {
+    "enabled": true,
+    "link_images": true,
+    "allow_fallback_to_source_images": true
+  },
+  "training": {
+    "engine_entrypoint": "code/main_yolo_improved.py",
+    "task": "seg",
+    "action": "train",
+    "model": "yolo11n-seg.pt",
+    "epochs": 100,
+    "batch_size": 4,
+    "lr": 0.0001,
+    "patience": 5
+  },
+  "evaluation": {
+    "engine_entrypoint": "code/main_yolo_improved.py",
+    "task": "seg",
+    "action": "eval",
+    "model_path": "model_best.pth"
+  }
+}
