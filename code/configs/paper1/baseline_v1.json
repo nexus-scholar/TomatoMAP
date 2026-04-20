@@ -24,13 +24,13 @@
     "height": 1024
   },
   "paths": {
-    "baseline_root": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1",
-    "coco_dir": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/coco",
-    "dataset_view_dir": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/dataset_view",
-    "dataset_view_images_dir": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/dataset_view/images",
-    "dataset_view_coco_dir": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/dataset_view/cocoOut",
-    "train_output_dir": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/train",
-    "logs_dir": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/logs"
+    "baseline_root": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1",
+    "coco_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/coco",
+    "dataset_view_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/dataset_view",
+    "dataset_view_images_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/dataset_view/images",
+    "dataset_view_coco_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/dataset_view/cocoOut",
+    "train_output_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/train",
+    "logs_dir": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/logs"
   },
   "dataset_view": {
     "enabled": true,
@@ -54,11 +54,11 @@
     "model_path": "model_best.pth"
   },
   "artifacts": {
-    "run_manifest": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/run_manifest.json",
-    "split_summary": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/split_summary.json",
-    "train_args": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/train_args.json",
-    "eval_metrics": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/eval_metrics.json",
-    "artifact_index": "/kaggle/working/TomatoMap/code/outputs/paper1/baseline_v1/artifact_index.json"
+    "run_manifest": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/run_manifest.json",
+    "split_summary": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/split_summary.json",
+    "train_args": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/train_args.json",
+    "eval_metrics": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/eval_metrics.json",
+    "artifact_index": "/kaggle/working/TomatoMAP/code/outputs/paper1/baseline_v1/artifact_index.json"
   }
 }
 
