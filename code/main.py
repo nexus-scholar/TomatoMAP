@@ -316,22 +316,36 @@ def _seg_train(args: argparse.Namespace) -> Dict[str, Any]:
 
     try:
         from ultralytics import YOLO
+        import torch
     except Exception as exc:
         raise RuntimeError("ultralytics is required for YOLO training in the new engine.") from exc
+
+    cuda_available = torch.cuda.is_available()
+    cuda_count = torch.cuda.device_count() if cuda_available else 0
+    if cuda_available and cuda_count > 0:
+        print(f"[device] CUDA available. count={cuda_count}, active={torch.cuda.get_device_name(0)}")
+    else:
+        print("[device] CUDA not available. Training will run on CPU unless device is configured externally.")
 
     data_yaml = _build_yolo_runtime_dataset(Path(args.data_dir), Path(args.output_dir), int(args.num_classes))
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     model = YOLO(args.model)
+    train_kwargs = {
+        "data": str(data_yaml),
+        "epochs": int(args.epochs),
+        "batch": int(args.batch_size),
+        "lr0": float(args.lr),
+        "patience": int(args.patience),
+        "project": str(Path(args.output_dir)),
+        "name": "yolo_seg",
+        "exist_ok": True,
+    }
+    if getattr(args, "device", None) not in (None, ""):
+        train_kwargs["device"] = str(args.device)
+
     run = model.train(
-        data=str(data_yaml),
-        epochs=int(args.epochs),
-        batch=int(args.batch_size),
-        lr0=float(args.lr),
-        patience=int(args.patience),
-        project=str(Path(args.output_dir)),
-        name="yolo_seg",
-        exist_ok=True,
+        **train_kwargs,
     )
 
     best = Path(run.save_dir) / "weights" / "best.pt"
@@ -410,6 +424,7 @@ def main() -> int:
     seg_train.add_argument("--patience", type=int, required=True)
     seg_train.add_argument("--output-dir", required=True)
     seg_train.add_argument("--num-classes", type=int, default=1)
+    seg_train.add_argument("--device", default="", help="Optional device override for YOLO (e.g., '0' or 'cpu').")
     seg_train.set_defaults(func=_seg_train)
 
     seg_eval = seg_sub.add_parser("eval", help="Evaluate seg backend")

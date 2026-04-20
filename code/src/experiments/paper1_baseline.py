@@ -169,18 +169,28 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False) -
 
 def _run_subprocess(command: list[str], log_path: Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(command, capture_output=True, text=True)
-
     with open(log_path, "w", encoding="utf-8") as f:
         f.write("COMMAND:\n")
         f.write(" ".join(command) + "\n\n")
-        f.write("STDOUT:\n")
-        f.write(result.stdout)
-        f.write("\nSTDERR:\n")
-        f.write(result.stderr)
+        f.flush()
 
-    if result.returncode != 0:
-        raise RuntimeError(f"Subprocess failed ({result.returncode}). See log: {log_path}")
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+
+        assert process.stdout is not None
+        for line in process.stdout:
+            print(line, end="")
+            f.write(line)
+
+        return_code = process.wait()
+
+    if return_code != 0:
+        raise RuntimeError(f"Subprocess failed ({return_code}). See log: {log_path}")
 
 
 def _resolve_data_dir(config: dict, repo_root: Path, coco_dir: Path) -> str:
@@ -245,6 +255,9 @@ def run_stage(config_path: Path, repo_root: Path, stage: str) -> dict:
             str(num_classes),
         ]
 
+        if "device" in spec and spec["device"] is not None and str(spec["device"]).strip() != "":
+            command.extend(["--device", str(spec["device"])])
+
         log_path = logs_dir / "train.log"
         _run_subprocess(command, log_path)
 
@@ -256,6 +269,7 @@ def run_stage(config_path: Path, repo_root: Path, stage: str) -> dict:
                 "data_dir": data_dir,
                 "image_size": config.get("image_size", {}),
                 "class_names": config.get("class_names", []),
+                "device": spec.get("device", "auto"),
             },
         )
 
