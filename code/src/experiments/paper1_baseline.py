@@ -108,8 +108,33 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False) -
     if manifest_path.exists() and not force:
         manifest = load_json(manifest_path)
         if manifest.get("frozen", False):
-            summary = validate_manifest_against_files(manifest, coco_dir, source_images_dir, source_labels_dir)
-            return {"status": "reused_existing_frozen_split", "summary": summary}
+            try:
+                summary = validate_manifest_against_files(manifest, coco_dir, source_images_dir, source_labels_dir)
+                return {"status": "reused_existing_frozen_split", "summary": summary}
+            except FileNotFoundError:
+                # Frozen manifest is present, but COCO splits are missing (common on fresh Kaggle clone).
+                ensure_dir(coco_dir)
+                convert_isat_folder_to_coco(
+                    task_dir=str(source_images_dir),
+                    label_dir=str(source_labels_dir),
+                    categories_path=str(categories_file),
+                    output_dir=str(coco_dir),
+                    train_ratio=float(config["split"]["train_ratio"]),
+                    val_ratio=float(config["split"]["val_ratio"]),
+                    seed=int(config["split"]["seed"]),
+                )
+                summary = validate_manifest_against_files(manifest, coco_dir, source_images_dir, source_labels_dir)
+
+                split_summary_path = resolve_path(repo_root, config["artifacts"]["split_summary"])
+                write_json(split_summary_path, summary)
+
+                dataset_view_status = _prepare_dataset_view(config, repo_root, coco_dir)
+                return {
+                    "status": "recovered_existing_frozen_split",
+                    "manifest_path": str(manifest_path),
+                    "summary": summary,
+                    "dataset_view": dataset_view_status,
+                }
 
     ensure_dir(coco_dir)
 

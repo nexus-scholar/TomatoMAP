@@ -8,7 +8,7 @@ from unittest import mock
 CODE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CODE_ROOT))
 
-from src.experiments.paper1_baseline import _prepare_dataset_view
+from src.experiments.paper1_baseline import _prepare_dataset_view, freeze_split_once
 
 
 class TestPaper1BaselineRuntime(unittest.TestCase):
@@ -58,6 +58,83 @@ class TestPaper1BaselineRuntime(unittest.TestCase):
             self.assertTrue((dataset_view_coco_dir / "train.json").exists())
             self.assertTrue((dataset_view_coco_dir / "val.json").exists())
             self.assertTrue((dataset_view_coco_dir / "test.json").exists())
+
+    def test_freeze_rebuilds_missing_coco_when_manifest_is_frozen(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+
+            source_images_dir = base / "TomatoMAP" / "TomatoMAP_seg" / "images"
+            source_labels_dir = base / "TomatoMAP" / "TomatoMAP_seg" / "labels"
+            source_images_dir.mkdir(parents=True)
+            source_labels_dir.mkdir(parents=True)
+
+            splits = {
+                "train": ["a.JPG"],
+                "val": ["b.JPG"],
+                "test": ["c.JPG"],
+            }
+            for file_name in ["a.JPG", "b.JPG", "c.JPG"]:
+                (source_images_dir / file_name).write_bytes(b"img")
+                with open(source_labels_dir / f"{Path(file_name).stem}.json", "w", encoding="utf-8") as f:
+                    json.dump({"info": {"name": file_name}, "objects": []}, f)
+
+            manifest_path = base / "code" / "configs" / "paper1" / "split_manifest_v1.json"
+            manifest_path.parent.mkdir(parents=True)
+            manifest = {"frozen": True, "splits": splits}
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(manifest, f)
+
+            config = {
+                "split": {
+                    "manifest_path": "code/configs/paper1/split_manifest_v1.json",
+                    "train_ratio": 0.7,
+                    "val_ratio": 0.2,
+                    "seed": 888,
+                },
+                "paths": {
+                    "coco_dir": "code/outputs/paper1/baseline_v1/coco",
+                    "dataset_view_dir": "code/outputs/paper1/baseline_v1/dataset_view",
+                    "dataset_view_images_dir": "code/outputs/paper1/baseline_v1/dataset_view/images",
+                    "dataset_view_coco_dir": "code/outputs/paper1/baseline_v1/dataset_view/cocoOut",
+                },
+                "dataset": {
+                    "source_images_dir": "TomatoMAP/TomatoMAP_seg/images",
+                    "source_labels_dir": "TomatoMAP/TomatoMAP_seg/labels",
+                    "categories_file": "TomatoMAP/TomatoMAP_seg/labels/isat.yaml",
+                },
+                "dataset_view": {
+                    "enabled": False,
+                    "link_images": True,
+                    "allow_fallback_to_source_images": True,
+                },
+                "artifacts": {
+                    "split_summary": "code/outputs/paper1/baseline_v1/split_summary.json",
+                },
+            }
+
+            config_path = base / "code" / "configs" / "paper1" / "baseline_v1.kaggle.json"
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f)
+
+            def fake_convert(**kwargs):
+                out_dir = Path(kwargs["output_dir"])
+                out_dir.mkdir(parents=True, exist_ok=True)
+                for split, files in splits.items():
+                    payload = {
+                        "images": [{"file_name": n, "id": i + 1} for i, n in enumerate(files)],
+                        "annotations": [],
+                        "categories": [{"id": 1, "name": "tomato", "supercategory": "none"}],
+                    }
+                    with open(out_dir / f"{split}.json", "w", encoding="utf-8") as wf:
+                        json.dump(payload, wf)
+
+            with mock.patch("src.experiments.paper1_baseline.convert_isat_folder_to_coco", side_effect=fake_convert):
+                result = freeze_split_once(config_path, base, force=False)
+
+            self.assertEqual(result["status"], "recovered_existing_frozen_split")
+            self.assertEqual(result["summary"]["counts"]["train"], 1)
+            self.assertEqual(result["summary"]["counts"]["val"], 1)
+            self.assertEqual(result["summary"]["counts"]["test"], 1)
 
 
 if __name__ == "__main__":
