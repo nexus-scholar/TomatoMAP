@@ -280,6 +280,11 @@ def _seg_eval_detectron2(args: argparse.Namespace) -> Dict[str, Any]:
     if not test_json.exists() or not images_root.exists():
         raise FileNotFoundError(f"Expected dataset view with images/ and cocoOut/test.json under: {data_dir}")
 
+    test_payload = json.loads(test_json.read_text(encoding="utf-8"))
+    dataset_num_classes = len(test_payload.get("categories", []))
+    if dataset_num_classes <= 0:
+        raise ValueError(f"No categories found in test split json: {test_json}")
+
     run_tag = str(abs(hash(Path(args.output_dir).as_posix())))
     test_name = f"tomatomap_test_{run_tag}"
     _register_detectron2_split(test_name, images_root, test_json)
@@ -297,6 +302,7 @@ def _seg_eval_detectron2(args: argparse.Namespace) -> Dict[str, Any]:
     cfg.merge_from_file(model_zoo.get_config_file(model_hint))
     cfg.DATASETS.TEST = (test_name,)
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = int(dataset_num_classes)
     cfg.OUTPUT_DIR = str(Path(args.output_dir))
 
     model_path = Path(args.model_path)

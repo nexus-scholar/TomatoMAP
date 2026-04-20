@@ -21,6 +21,7 @@ def main() -> None:
         raise ValueError("Use --freeze-split to explicitly acknowledge split freezing.")
 
     result = freeze_split_once(Path(args.config), REPO_ROOT, force=args.force)
+    print(f"[prepare] status: {result.get('status')}")
     print(json.dumps(result, indent=2))
 
 
