@@ -17,7 +17,16 @@
     "seed": 888
   },
   "class_names": [
-    "tomato"
+    "nascent",
+    "mini",
+    "unripe green tomato",
+    "semi ripe",
+    "fully ripe",
+    "2mm",
+    "4mm",
+    "6mm",
+    "8mm",
+    "12mm"
   ],
   "image_size": {
     "width": 1024,

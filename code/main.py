@@ -64,6 +64,31 @@ def _build_yolo_runtime_dataset(data_dir: Path, output_dir: Path, num_classes: i
     (runtime_dir / "images").mkdir(parents=True, exist_ok=True)
     (runtime_dir / "labels").mkdir(parents=True, exist_ok=True)
 
+    # Build a stable category mapping once from COCO categories (same schema across splits).
+    category_entries = []
+    for split in ("train", "val", "test"):
+        split_json = coco_dir / f"{split}.json"
+        if not split_json.exists():
+            continue
+        payload = json.loads(split_json.read_text(encoding="utf-8"))
+        raw_categories = payload.get("categories", [])
+        if raw_categories:
+            category_entries = sorted(raw_categories, key=lambda c: int(c.get("id", 0)))
+            break
+
+    if not category_entries:
+        raise ValueError(f"No categories found in COCO split files under: {coco_dir}")
+
+    if int(num_classes) <= 1:
+        # Paper 1 single-class mode: collapse all source categories to class 0.
+        id_to_idx = {int(c["id"]): 0 for c in category_entries}
+        yolo_names = [str(category_entries[0].get("name", "class_0"))]
+    else:
+        # Keep original category semantics and names for multiclass runs.
+        selected_categories = category_entries[: int(num_classes)]
+        id_to_idx = {int(c["id"]): i for i, c in enumerate(selected_categories)}
+        yolo_names = [str(c.get("name", f"class_{i}")) for i, c in enumerate(selected_categories)]
+
     for split in ("train", "val", "test"):
         split_json = coco_dir / f"{split}.json"
         if not split_json.exists():
@@ -72,16 +97,7 @@ def _build_yolo_runtime_dataset(data_dir: Path, output_dir: Path, num_classes: i
         payload = json.loads(split_json.read_text(encoding="utf-8"))
         images = payload.get("images", [])
         annotations = payload.get("annotations", [])
-        categories = payload.get("categories", [])
-
-        cat_ids = sorted([c["id"] for c in categories])
-        if int(num_classes) <= 1:
-            # Paper 1 single-class mode: collapse all source categories to class 0.
-            id_to_idx = {cid: 0 for cid in cat_ids}
-        else:
-            # Guard against out-of-range labels by mapping only the first num_classes ids.
-            valid_ids = cat_ids[: int(num_classes)]
-            id_to_idx = {cid: i for i, cid in enumerate(valid_ids)}
+        # category mapping is computed once above to keep consistent ids across splits.
 
         anns_by_img: Dict[int, list[dict]] = {}
         for ann in annotations:
@@ -124,11 +140,11 @@ def _build_yolo_runtime_dataset(data_dir: Path, output_dir: Path, num_classes: i
                     x = max(0.0, min(1.0, float(poly[i]) / width))
                     y = max(0.0, min(1.0, float(poly[i + 1]) / height))
                     norm.extend([x, y])
-                lines.append("{} {}".format(id_to_idx[cid], " ".join(f"{v:.6f}" for v in norm)))
+                lines.append("{} {}".format(id_to_idx[int(cid)], " ".join(f"{v:.6f}" for v in norm)))
 
             lbl_path.write_text("\n".join(lines), encoding="utf-8")
 
-    names = "\n".join([f"  {i}: class_{i}" for i in range(max(1, num_classes))])
+    names = "\n".join([f'  {i}: "{name}"' for i, name in enumerate(yolo_names)])
     data_yaml = runtime_dir / "data.yaml"
     data_yaml.write_text(
         "\n".join(
