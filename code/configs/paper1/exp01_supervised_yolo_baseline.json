@@ -1,0 +1,58 @@
+{
+  "experiment_id": "exp01_supervised_yolo_baseline",
+  "paper_track": "paper1",
+  "seed": 888,
+  "dataset": {
+    "base_data_dir": "/kaggle/input/datasets/mbsoft/tomatomap-paper1-seg-data/data/TomatoMAP_seg",
+    "verified_labels_only": true
+  },
+  "split": {
+    "manifest_path": "code/configs/paper1/split_manifest_v1.json",
+    "freeze_once": true,
+    "regenerate_on_run": false,
+    "train_ratio": 0.7,
+    "val_ratio": 0.2,
+    "seed": 888
+  },
+  "class_names": [
+    "nascent",
+    "mini",
+    "unripe green tomato",
+    "semi ripe",
+    "fully ripe",
+    "2mm",
+    "4mm",
+    "6mm",
+    "8mm",
+    "12mm"
+  ],
+  "image_size": {
+    "width": 1024,
+    "height": 1024
+  },
+  "paths": {
+    "base_output_dir": "/kaggle/working/TomatoMAP/code/outputs"
+  },
+  "dataset_view": {
+    "enabled": true,
+    "link_images": true,
+    "allow_fallback_to_source_images": true
+  },
+  "training": {
+    "engine_entrypoint": "code/main_yolo_improved.py",
+    "task": "seg",
+    "action": "train",
+    "model": "yolo11n-seg.pt",
+    "epochs": 100,
+    "batch_size": 4,
+    "lr": 0.0001,
+    "patience": 5
+  },
+  "evaluation": {
+    "engine_entrypoint": "code/main_yolo_improved.py",
+    "task": "seg",
+    "action": "eval",
+    "model_path": "model_best.pth"
+  }
+}
+

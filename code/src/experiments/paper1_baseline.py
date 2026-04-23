@@ -17,7 +17,9 @@ def resolve_path(repo_root: Path, value: str) -> Path:
 
 
 def load_config(config_path: Path) -> dict:
-    return load_json(config_path)
+    from .config import ExperimentConfig
+    cfg = ExperimentConfig.load(config_path)
+    return cfg.model_dump()
 
 
 def _build_manifest(config: dict, split_lists: dict[str, list[str]]) -> dict:
@@ -114,6 +116,8 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False, s
             except FileNotFoundError:
                 # Frozen manifest is present, but COCO splits are missing (common on fresh Kaggle clone).
                 ensure_dir(coco_dir)
+                # Auto-inject class_names as selected_labels if not overridden
+                filters = selected_labels if selected_labels is not None else config.get("class_names")
                 convert_isat_folder_to_coco(
                     task_dir=str(source_images_dir),
                     label_dir=str(source_labels_dir),
@@ -122,13 +126,15 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False, s
                     train_ratio=float(config["split"]["train_ratio"]),
                     val_ratio=float(config["split"]["val_ratio"]),
                     seed=int(config["split"].get("seed", 888)),
-                    selected_labels=selected_labels,
+                    selected_labels=filters,
                 )
                 summary = validate_manifest_against_files(manifest, coco_dir, source_images_dir, source_labels_dir)
                 return {"status": "recreated_coco_from_frozen_split", "summary": summary}
 
     ensure_dir(coco_dir)
 
+    # Auto-inject class_names as selected_labels if not overridden
+    filters = selected_labels if selected_labels is not None else config.get("class_names")
     convert_isat_folder_to_coco(
         task_dir=str(source_images_dir),
         label_dir=str(source_labels_dir),
@@ -137,7 +143,7 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False, s
         train_ratio=float(config["split"]["train_ratio"]),
         val_ratio=float(config["split"]["val_ratio"]),
         seed=int(config["split"].get("seed", 888)),
-        selected_labels=selected_labels,
+        selected_labels=filters,
     )
 
     split_lists = _read_split_lists(coco_dir)

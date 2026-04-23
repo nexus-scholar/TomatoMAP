@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
 class DatasetConfig(BaseModel):
+    base_data_dir: Optional[str] = None
     source_images_dir: str
     source_labels_dir: str
     categories_file: str
@@ -23,6 +24,7 @@ class ImageSizeConfig(BaseModel):
     height: int = 1024
 
 class PathsConfig(BaseModel):
+    base_output_dir: Optional[str] = None
     baseline_root: str
     coco_dir: str
     dataset_view_dir: str
@@ -76,6 +78,53 @@ class ExperimentConfig(BaseModel):
     evaluation: EvaluationConfig
     artifacts: ArtifactsConfig
 
+    @model_validator(mode="before")
+    @classmethod
+    def expand_paths(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        exp_id = data.get("experiment_id", "exp_default")
+        track = data.get("paper_track", "paper1")
+
+        # 1) Auto map dataset logic
+        ds = data.get("dataset", {})
+        if isinstance(ds, dict):
+            base_data = ds.get("base_data_dir")
+            if base_data:
+                ds.setdefault("source_images_dir", f"{base_data}/images")
+                ds.setdefault("source_labels_dir", f"{base_data}/labels")
+                ds.setdefault("categories_file", f"{base_data}/labels/isat.yaml")
+            data["dataset"] = ds
+
+        # 2) Auto map paths logic
+        paths = data.get("paths", {})
+        if isinstance(paths, dict):
+            base_out = paths.get("base_output_dir")
+            if base_out:
+                root = f"{base_out}/{track}/{exp_id}"
+                paths.setdefault("baseline_root", root)
+                paths.setdefault("coco_dir", f"{root}/coco")
+                paths.setdefault("dataset_view_dir", f"{root}/dataset_view")
+                paths.setdefault("dataset_view_images_dir", f"{root}/dataset_view/images")
+                paths.setdefault("dataset_view_coco_dir", f"{root}/dataset_view/cocoOut")
+                paths.setdefault("train_output_dir", f"{root}/train")
+                paths.setdefault("logs_dir", f"{root}/logs")
+            data["paths"] = paths
+
+        # 3) Auto map artifacts logic
+        artifacts = data.get("artifacts", {})
+        if isinstance(artifacts, dict) and "baseline_root" in data.get("paths", {}):
+            root = data["paths"]["baseline_root"]
+            artifacts.setdefault("run_manifest", f"{root}/run_manifest.json")
+            artifacts.setdefault("split_summary", f"{root}/split_summary.json")
+            artifacts.setdefault("train_args", f"{root}/train_args.json")
+            artifacts.setdefault("eval_metrics", f"{root}/eval_metrics.json")
+            artifacts.setdefault("artifact_index", f"{root}/artifact_index.json")
+            data["artifacts"] = artifacts
+
+        return data
+
     @classmethod
     def load(cls, config_path: str | Path) -> 'ExperimentConfig':
         import json
@@ -87,4 +136,3 @@ class ExperimentConfig(BaseModel):
         import json
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(self.model_dump(), f, indent=2)
-
