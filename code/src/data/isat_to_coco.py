@@ -56,6 +56,7 @@ def convert_isat_folder_to_coco(
     train_ratio: float = 0.7,
     val_ratio: float = 0.2,
     seed: int = 888,
+    selected_labels: list[str] | None = None,
 ) -> dict:
     img_dir = Path(task_dir)
     lbl_dir = Path(label_dir)
@@ -68,31 +69,51 @@ def convert_isat_folder_to_coco(
 
     categories, category_map = load_categories(categories_path)
 
+    # Optional subset filtering by class name
+    if selected_labels is not None:
+        valid_set = set(selected_labels)
+        categories = [c for c in categories if c["name"] in valid_set]
+        category_map = {k: v for k, v in category_map.items() if k in valid_set}
+
     image_files = sorted([p.name for p in img_dir.iterdir() if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png"}])
     json_map = {p.stem: p.name for p in sorted(lbl_dir.glob("*.json"))}
 
     dataset = []
+    unlabeled_images = []
     for img_name in image_files:
         stem = Path(img_name).stem
         if stem in json_map:
-            dataset.append({"img_file": img_name, "json_file": json_map[stem]})
+            json_path = lbl_dir / json_map[stem]
+            with open(json_path, "r", encoding="utf-8") as f:
+                isat = json.load(f)
+            
+            has_valid = False
+            for obj in isat.get("objects", []):
+                if obj.get("category") in category_map:
+                    has_valid = True
+                    break
+            
+            if has_valid:
+                dataset.append({"img_file": img_name, "json_file": json_map[stem]})
+            else:
+                unlabeled_images.append(img_name)
+        else:
+            unlabeled_images.append(img_name)
 
     rng = random.Random(seed)
     rng.shuffle(dataset)
 
-    total = len(dataset)
-    train_end = int(total * train_ratio)
-    val_end = int(total * (train_ratio + val_ratio))
+    n_total = len(dataset)
+    n_train = int(n_total * train_ratio)
+    n_val = int(n_total * (train_ratio + val_ratio))
 
-    splits = {
-        "train": dataset[:train_end],
-        "val": dataset[train_end:val_end],
-        "test": dataset[val_end:],
+    paths = {
+        "train": dataset[:n_train],
+        "val": dataset[n_train:n_val],
+        "test": dataset[n_val:],
     }
 
-    split_counts: dict[str, int] = {}
-
-    for split_name, split_data in splits.items():
+    for split_name, split_data in paths.items():
         coco = {"images": [], "annotations": [], "categories": categories}
         ann_id = 1
         img_id = 1
@@ -141,15 +162,29 @@ def convert_isat_folder_to_coco(
             img_id += 1
 
         write_json(out_dir / f"{split_name}.json", coco)
-        split_counts[split_name] = len(split_data)
+
+    # Write unlabeled images to a separate json list file
+    write_json(out_dir / "unlabeled_images.json", unlabeled_images)
 
     return {
-        "total_pairs": total,
-        "split_counts": split_counts,
+        "total_pairs": n_total,
+        "split_counts": {
+            "train": n_train,
+            "val": n_val,
+            "test": len(paths["test"]),
+        },
         "seed": seed,
         "train_ratio": train_ratio,
         "val_ratio": val_ratio,
         "output_dir": str(out_dir),
+        "unlabeled_images": unlabeled_images,
+        "counts": {
+            "train": n_train,
+            "val": n_val,
+            "test": len(paths["test"]),
+            "total_labeled": n_total,
+            "total_unlabeled": len(unlabeled_images),
+        }
     }
 
 

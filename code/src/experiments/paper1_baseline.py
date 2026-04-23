@@ -65,7 +65,7 @@ def _populate_dataset_view_images(source_images_dir: Path, dataset_view_images_d
     return "copied_images"
 
 
-def _prepare_dataset_view(config: dict, repo_root: Path, coco_dir: Path) -> dict:
+def _prepare_dataset_view(config: ExperimentConfig, repo_root: Path, coco_dir: Path) -> dict:
     dataset_view_cfg = config.get("dataset_view", {})
     dataset_view_dir = resolve_path(repo_root, config["paths"]["dataset_view_dir"])
     dataset_view_images_dir = resolve_path(repo_root, config["paths"]["dataset_view_images_dir"])
@@ -96,7 +96,7 @@ def _prepare_dataset_view(config: dict, repo_root: Path, coco_dir: Path) -> dict
     raise RuntimeError("Dataset view image link/junction creation failed and fallback is disabled.")
 
 
-def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False) -> dict:
+def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False, selected_labels: list[str] | None = None) -> dict:
     config = load_config(config_path)
 
     manifest_path = resolve_path(repo_root, config["split"]["manifest_path"])
@@ -121,20 +121,11 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False) -
                     output_dir=str(coco_dir),
                     train_ratio=float(config["split"]["train_ratio"]),
                     val_ratio=float(config["split"]["val_ratio"]),
-                    seed=int(config["split"]["seed"]),
+                    seed=int(config["split"].get("seed", 888)),
+                    selected_labels=selected_labels,
                 )
                 summary = validate_manifest_against_files(manifest, coco_dir, source_images_dir, source_labels_dir)
-
-                split_summary_path = resolve_path(repo_root, config["artifacts"]["split_summary"])
-                write_json(split_summary_path, summary)
-
-                dataset_view_status = _prepare_dataset_view(config, repo_root, coco_dir)
-                return {
-                    "status": "recovered_existing_frozen_split",
-                    "manifest_path": str(manifest_path),
-                    "summary": summary,
-                    "dataset_view": dataset_view_status,
-                }
+                return {"status": "recreated_coco_from_frozen_split", "summary": summary}
 
     ensure_dir(coco_dir)
 
@@ -145,7 +136,8 @@ def freeze_split_once(config_path: Path, repo_root: Path, force: bool = False) -
         output_dir=str(coco_dir),
         train_ratio=float(config["split"]["train_ratio"]),
         val_ratio=float(config["split"]["val_ratio"]),
-        seed=int(config["split"]["seed"]),
+        seed=int(config["split"].get("seed", 888)),
+        selected_labels=selected_labels,
     )
 
     split_lists = _read_split_lists(coco_dir)
