@@ -39,7 +39,7 @@
     "allow_fallback_to_source_images": true
   },
   "training": {
-    "engine_entrypoint": "code/main_yolo_improved.py",
+    "engine_entrypoint": "code/main.py",
     "task": "seg",
     "action": "train",
     "model": "yolo11n-seg.pt",
@@ -49,7 +49,7 @@
     "patience": 5
   },
   "evaluation": {
-    "engine_entrypoint": "code/main_yolo_improved.py",
+    "engine_entrypoint": "code/main.py",
     "task": "seg",
     "action": "eval",
     "model_path": "model_best.pth"
