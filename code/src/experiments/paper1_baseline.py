@@ -67,7 +67,7 @@ def _populate_dataset_view_images(source_images_dir: Path, dataset_view_images_d
     return "copied_images"
 
 
-def _prepare_dataset_view(config: ExperimentConfig, repo_root: Path, coco_dir: Path) -> dict:
+def _prepare_dataset_view(config: dict, repo_root: Path, coco_dir: Path) -> dict:
     dataset_view_cfg = config.get("dataset_view", {})
     dataset_view_dir = resolve_path(repo_root, config["paths"]["dataset_view_dir"])
     dataset_view_images_dir = resolve_path(repo_root, config["paths"]["dataset_view_images_dir"])
