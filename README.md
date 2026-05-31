@@ -1,46 +1,127 @@
-# TomatoMAP: *Solanum lycopersicum* (Tomato) Multi-Angle Multi-Pose Dataset for Fine-Grained Phenotyping
+# TomatoMAP Research Workflow and Benchmark Artifacts
 
-Observer bias and inconsistencies in traditional plant phenotyping methods limit the accuracy and reproducibility of fine-grained plant analysis. To overcome these challenges, we developed TomatoMAP, a comprehensive dataset for *Solanum lycopersicum* using an Internet of Things (IoT) based imaging system with standardized data acquisition protocols. Our dataset contains 64,464 RGB images that capture 12 different plant poses from four camera elevation angles. Each image includes manually annotated bounding boxes for seven regions of interest (ROIs), including leaves, panicle, batch of flowers, batch of fruits, axillary shoot, shoot and whole plant area, along with 50 fine-grained growth stage classifications based on the BBCH scale. Additionally, we provide 3,616 high-resolution image subset with pixel-wise semantic and instance segmentation annotations for fine-grained phenotyping. We validated our dataset using a cascading model deep learning framework combining MobileNetv3 for classification, YOLOv11 for object detection, and MaskRCNN for segmentation. Through AI vs. Human analysis involving five domain experts, we demonstrate that the models trained on our dataset achieve accuracy and speed comparable to the experts. Cohen’s Kappa and inter-rater agreement heatmap confirm the reliability of automated fine-grained phenotyping using our approach. Details can be found in our homepage: https://0yj.github.io/tomato_map/ 
+This repository is a downstream research-workflow archive built around the public
+TomatoMAP / TomatoMAP-Seg dataset family. It is not the canonical TomatoMAP
+dataset repository and it does not claim authorship of the original dataset,
+imaging station, annotations, metadata, or upstream validation study.
 
-#### Repo Structure
+The purpose of this repo is narrower: keep Mouadh Bekhouche's public
+reproducibility work, benchmark preparation code, Kaggle runbooks, and
+source-faithful data-processing utilities in one inspectable place.
 
-This repository contains two folders:
+## Provenance boundary
 
-- `metadata` contains meta data of TomatoMAP, including comprehensive manual and semi-automatic phenotyping data for 101 tomato plant samples. The data covers growth measurements, developmental stages tracking, and imaging meta. Data is generated from a controlled greenhouse environment at Julius Kuehn Institute experiment with automated imaging systems. Details see ***README.md*** under the subfolder. 
-- `TomatoMAP` contains the image data as well as the annotations. 
+- Upstream TomatoMAP source work: the TomatoMAP dataset, TomatoMAP-Seg image and
+  label resources, multi-angle/multi-pose acquisition design, original metadata,
+  and dataset validation belong to the upstream TomatoMAP authors. Start from
+  the upstream project page: https://0yj.github.io/tomato_map/ and the upstream
+  repository: https://github.com/0YJ/TomatoMAP.
+- This repository: contains a public research workflow that audits available
+  TomatoMAP-Seg label files, converts segmentation annotations into benchmark
+  formats, freezes reproducible splits, and organizes local/Kaggle execution for
+  supervised baseline experiments.
+- Source labels vs generated artifacts: original TomatoMAP-Seg per-image
+  annotation files are treated as source labels. COCO files, split manifests,
+  filtered views, and Kaggle packages are generated benchmark artifacts and
+  should be cited or described as derived artifacts, not as original labels.
+- Claims boundary: this repository is not evidence of a new dataset, production
+  model, state-of-the-art result, or completed scientific claim. It is evidence
+  of a reproducible benchmark workflow and careful experiment organization.
 
-#### Data Generation
+## What is in this repo
 
-- Clone our code repo
+```text
+.
++-- code/       # Main reproducible workflow: parsers, conversion, splits, tests
++-- kaggle/     # Kaggle dataset/package templates and execution notes
++-- metadata/   # Upstream TomatoMAP metadata reference files
++-- research/   # Working research notes and context; not the public claim surface
++-- pyproject.toml
++-- uv.lock
 ```
-git clone https://github.com/0YJ/TomatoMAP
-cd TomatoMAP/code
+
+The current public surface should be `code/`, `kaggle/`, and `metadata/`.
+The `research/` folder may contain working notes, planning context, or draft
+thinking. Treat it as historical project context rather than reviewed public
+documentation.
+
+## Main workflow
+
+The active implementation lives in `code/`.
+
+It provides:
+
+- ISAT / TomatoMAP-Seg label auditing utilities.
+- Annotation extraction helpers.
+- ISAT-to-COCO conversion code.
+- Frozen split management through `code/configs/paper1/split_manifest_v1.json`.
+- Experiment configuration through
+  `code/configs/paper1/exp01_supervised_yolo_baseline.json`.
+- Lightweight tests for split validation, conversion, extraction, and baseline
+  runtime behavior.
+- Kaggle-oriented runbooks for executing the workflow away from the local
+  machine.
+
+Useful entry points:
+
+- `code/README.md` for implementation details.
+- `code/docs/paper1_github_kaggle_runbook.md` for GitHub/Kaggle workflow notes.
+- `kaggle/README.md` for Kaggle packaging conventions.
+- `metadata/README.md` for the upstream metadata reference.
+
+## Expected data layout
+
+Raw TomatoMAP image and label payloads are intentionally not tracked in this
+repository. Local or Kaggle runs should provide the dataset separately and keep
+the raw data outside Git history.
+
+Typical expected structure:
+
+```text
+TomatoMAP/
++-- TomatoMAP_seg/
+    +-- images/
+    +-- labels/
 ```
-- Please download the repository, fully unzip in path: TomatoMAP/code/
-- Run through our ***TomatoMAP_builder.ipynb***, you will get TomatoMAP-Cls, TomatoMAP-Det, and the downloaded TomatoMAP-Seg.
-#### Model Training
 
-TomatoMAP project offers chance to train your own model based on our dataset. 
+Generated outputs should remain untracked. The `.gitignore` excludes raw dataset
+trees, model checkpoints, logs, local Kaggle credentials, and `code/outputs/`.
 
-To train your own model, easliy run through ***TomatoMAP_trainer.ipynb***. 
+## Lightweight verification
 
-#### Author Contributions
+This repository is designed so that code-level checks can run without launching
+heavy training jobs:
 
-Y.Z. and S.R. designed the data station. Y.Z. designed the dataset, performed the collecting of the data, train- ing of the models, and validating of the dataset. Y.Z., A.K., and S.R. wrote the manuscript, and handled the submissions of manuscript and dataset. Y.Z, A.K, and S.R designed the experiments. Y.Z, S.ST., A.K., and S.R. conducted the experiments.
+```powershell
+python -m unittest discover -s ".\code\tests" -p "test_*.py"
+```
 
-#### Competing Interests
+Training and evaluation commands depend on the dataset being mounted locally or
+in Kaggle. Do not treat missing local raw data as a code failure.
 
-The authors have declared no conflicts of interest.
+## How to cite or describe this repository safely
 
-# Acknowledgments 
+Safe wording:
 
-This project was powered by the de.NBI Cloud within the German Network for Bioinformatics Infrastructure (de.NBI) and ELIXIR-DE (Forschungszentrum J¨ulich and W-de.NBI-001, W-de.NBI-004, W-de.NBI-008, W- de.NBI-010, W-de.NBI-013, W-de.NBI-014, W-de.NBI-016, W-de.NBI-022)
+> A reproducible research workflow for auditing TomatoMAP-Seg annotations,
+> converting them into benchmark-ready formats, freezing train/validation/test
+> splits, and running supervised segmentation baselines on local or Kaggle
+> infrastructure.
 
-This work was fundend by the Federal Ministry of Agriculture, Food and Regional Identity.
+Avoid wording that implies:
 
-## Reproducible Paper 1 Workflow (Current)
-- `code/` is the source of truth for the new Paper 1 baseline implementation.
-- `TomatoMAP/` is kept as legacy read-only reference.
-- For exact GitHub push, Kaggle dataset, and Kaggle execution steps, use:
-  - `code/docs/paper1_github_kaggle_runbook.md`
-  - `kaggle/README.md`
+- Mouadh authored the original TomatoMAP dataset.
+- This repository corrected or replaced the upstream dataset.
+- Generated COCO files are original labels.
+- Current baseline artifacts establish a state-of-the-art result.
+- Unreviewed working notes are final thesis or paper claims.
+
+## License and upstream attribution
+
+Before redistributing derived datasets, figures, benchmark packages, or model
+outputs, check the upstream TomatoMAP license/citation requirements and the
+license of any model or training framework used in the workflow.
+
+When this repository is mentioned publicly, cite the upstream TomatoMAP project
+for the dataset/source material and cite this repository only for Mouadh's
+workflow, conversion, split, and benchmark-organization code.
